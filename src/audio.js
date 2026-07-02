@@ -16,13 +16,26 @@ const AudioSys = {
   nextNoteTime: 0,
   _noiseBuf: null,
 
+  // Perceptual volume: human loudness is logarithmic, so a linear slider
+  // mapped straight to gain sounds like it does nothing over most of its
+  // range. Squaring the slider value spreads the audible change out.
+  masterGainValue() {
+    return this.muted ? 0 : this.volume * this.volume;
+  },
+
+  applyMasterGain() {
+    if (!this.master) return;
+    // short ramp avoids zipper noise while dragging the slider
+    this.master.gain.setTargetAtTime(this.masterGainValue(), this.ctx.currentTime, 0.02);
+  },
+
   ensure() {
     if (!this.ctx) {
       const AC = window.AudioContext || window.webkitAudioContext;
       if (!AC) return;
       this.ctx = new AC();
       this.master = this.ctx.createGain();
-      this.master.gain.value = this.muted ? 0 : this.volume;
+      this.master.gain.value = this.masterGainValue();
       this.master.connect(this.ctx.destination);
       this.sfxBus = this.ctx.createGain();
       this.sfxBus.gain.value = 0.5;
@@ -37,13 +50,14 @@ const AudioSys = {
 
   toggleMute() {
     this.muted = !this.muted;
-    if (this.master) this.master.gain.value = this.muted ? 0 : this.volume;
+    this.applyMasterGain();
     return this.muted;
   },
 
   setVolume(v) {
     this.volume = Math.min(1, Math.max(0, v));
-    if (this.master && !this.muted) this.master.gain.value = this.volume;
+    this.muted = false;   // adjusting volume always unmutes
+    this.applyMasterGain();
   },
 
   setIntensity(round) {

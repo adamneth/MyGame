@@ -95,6 +95,7 @@ window.addEventListener('keydown', (e) => {
   }
   if (e.code === 'KeyM') {
     AudioSys.toggleMute();
+    updateVolIcon();
   }
   if (e.code === 'KeyR' && TurnManager.phase === 'gameover') {
     newGame();
@@ -114,11 +115,20 @@ window.addEventListener('keyup', (e) => {
 window.addEventListener('pointerdown', () => AudioSys.ensure());
 
 const volSlider = document.getElementById('volume');
+const volIcon = document.getElementById('volIcon');
+
+function updateVolIcon() {
+  volIcon.textContent = (AudioSys.muted || AudioSys.volume === 0) ? '🔇' : '🔊';
+}
+
 volSlider.addEventListener('input', () => {
   AudioSys.ensure();
   AudioSys.setVolume(volSlider.value / 100);
-  volSlider.blur();   // keep arrow keys aiming the tank, not the slider
+  updateVolIcon();
 });
+// blur only after the drag ends, so arrow keys go back to aiming the tank
+// without interrupting the drag itself
+volSlider.addEventListener('change', () => volSlider.blur());
 
 // --- game loop ---
 function update(dt) {
