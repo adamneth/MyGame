@@ -1,4 +1,4 @@
-# Project: Tactical Tank Battle (working title)
+# Project: TankBeef (formerly "Tactical Tank Battle")
 
 ## About This Project
 A 1v1 turn-based tank artillery game, inspired by *Pocket Tanks*. Simple, clean
