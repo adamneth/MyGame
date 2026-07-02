@@ -7,6 +7,8 @@ const AudioSys = {
   sfxBus: null,
   musicBus: null,
   muted: false,
+  volume: 0.8,
+  intensity: 1,        // current round (1..10); drives music layering
   chargeOsc: null,
   chargeGain: null,
   musicTimer: null,
@@ -20,7 +22,7 @@ const AudioSys = {
       if (!AC) return;
       this.ctx = new AC();
       this.master = this.ctx.createGain();
-      this.master.gain.value = this.muted ? 0 : 1;
+      this.master.gain.value = this.muted ? 0 : this.volume;
       this.master.connect(this.ctx.destination);
       this.sfxBus = this.ctx.createGain();
       this.sfxBus.gain.value = 0.5;
@@ -35,8 +37,17 @@ const AudioSys = {
 
   toggleMute() {
     this.muted = !this.muted;
-    if (this.master) this.master.gain.value = this.muted ? 0 : 1;
+    if (this.master) this.master.gain.value = this.muted ? 0 : this.volume;
     return this.muted;
+  },
+
+  setVolume(v) {
+    this.volume = Math.min(1, Math.max(0, v));
+    if (this.master && !this.muted) this.master.gain.value = this.volume;
+  },
+
+  setIntensity(round) {
+    this.intensity = Math.min(10, Math.max(1, round));
   },
 
   // --- helpers ---
@@ -180,6 +191,28 @@ const AudioSys = {
     else this.ctx.resume();
   },
 
+  // Layers stack as rounds progress (intensity = current round):
+  //   1+  bass line
+  //   2+  melody
+  //   4+  hi-hat ticks on even steps
+  //   6+  melody doubled an octave up
+  //   8+  hats every step + off-beat octave bass
+  // Tempo also climbs from ~92 to ~110 bpm across the game.
+
+  hat(when, vol) {
+    const src = this.ctx.createBufferSource();
+    src.buffer = this.noiseBuffer();
+    const f = this.ctx.createBiquadFilter();
+    f.type = 'highpass';
+    f.frequency.value = 6000;
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(vol, when);
+    g.gain.exponentialRampToValueAtTime(0.001, when + 0.05);
+    src.connect(f).connect(g).connect(this.musicBus);
+    src.start(when);
+    src.stop(when + 0.06);
+  },
+
   startMusic() {
     const BASS = [
       110, 0, 110, 0, 87.31, 0, 87.31, 0,
@@ -189,16 +222,26 @@ const AudioSys = {
       440, 0, 523.25, 587.33, 0, 440, 0, 0,
       659.25, 0, 587.33, 523.25, 0, 440, 0, 0,
     ];
-    const stepDur = 60 / 92 / 2;   // eighth notes at 92 bpm
     this.step = 0;
     this.nextNoteTime = this.ctx.currentTime + 0.1;
 
     this.musicTimer = setInterval(() => {
       while (this.nextNoteTime < this.ctx.currentTime + 0.15) {
+        const lvl = this.intensity;
+        const bpm = 90 + lvl * 2;
+        const stepDur = 60 / bpm / 2;   // eighth notes
         const i = this.step % 16;
         const t = this.nextNoteTime;
+
         if (BASS[i]) this.note(BASS[i], t, stepDur * 1.8, 'triangle', 0.5, this.musicBus);
-        if (MELODY[i]) this.note(MELODY[i], t, stepDur * 1.3, 'square', 0.12, this.musicBus);
+        if (lvl >= 2 && MELODY[i]) this.note(MELODY[i], t, stepDur * 1.3, 'square', 0.12, this.musicBus);
+        if (lvl >= 4 && (lvl >= 8 || i % 2 === 0)) this.hat(t, lvl >= 8 ? 0.09 : 0.06);
+        if (lvl >= 6 && MELODY[i]) this.note(MELODY[i] * 2, t, stepDur, 'square', 0.05, this.musicBus);
+        if (lvl >= 8 && i % 4 === 2) {
+          const barRoot = BASS[i - (i % 4)] || 110;
+          this.note(barRoot * 2, t, stepDur * 0.9, 'triangle', 0.25, this.musicBus);
+        }
+
         this.step++;
         this.nextNoteTime += stepDur;
       }

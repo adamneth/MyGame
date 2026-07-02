@@ -18,10 +18,38 @@
     box-shadow: 0 0 40px rgba(0,0,0,.6);
     border-radius: 6px;
   }
+  #wrap {
+    position: relative;
+  }
+  #volumeBox {
+    position: absolute;
+    right: 12px;
+    bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    opacity: 0.55;
+    transition: opacity .15s;
+    color: #cfd8dc;
+    font-size: 13px;
+    user-select: none;
+  }
+  #volumeBox:hover { opacity: 1; }
+  #volume {
+    width: 90px;
+    accent-color: #ffb74d;
+    cursor: pointer;
+  }
 </style>
 </head>
 <body>
-<canvas id="game" width="960" height="540"></canvas>
+<div id="wrap">
+  <canvas id="game" width="960" height="540"></canvas>
+  <div id="volumeBox">
+    <span>🔊</span>
+    <input id="volume" type="range" min="0" max="100" value="80" aria-label="Volume">
+  </div>
+</div>
 <script src="src/terrain.js"></script>
 <script src="src/tank.js"></script>
 <script src="src/projectile.js"></script>

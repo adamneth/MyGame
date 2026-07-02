@@ -113,9 +113,17 @@ window.addEventListener('keyup', (e) => {
 
 window.addEventListener('pointerdown', () => AudioSys.ensure());
 
+const volSlider = document.getElementById('volume');
+volSlider.addEventListener('input', () => {
+  AudioSys.ensure();
+  AudioSys.setVolume(volSlider.value / 100);
+  volSlider.blur();   // keep arrow keys aiming the tank, not the slider
+});
+
 // --- game loop ---
 function update(dt) {
   UI.update(dt);
+  AudioSys.setIntensity(TurnManager.round);
   for (const t of tanks) t.settle();
 
   // arrow-key aiming (player only, while it's their turn)
